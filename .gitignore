@@ -1,0 +1,32 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtualenvs
+.venv/
+venv/
+ENV/
+env/
+
+# Packaging/build
+build/
+dist/
+*.egg-info/
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Local controller runtime/state
+state/
+policyBundle/*.bak.*
+
+# Embedded vendor repo (avoid accidental git submodule)
+third_party/hubble/cilium/
+
+# Logs
+*.log

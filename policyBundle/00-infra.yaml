@@ -1,0 +1,130 @@
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: infra-allow-dns-egress
+  namespace: trirematics
+spec:
+  endpointSelector: {}
+  egress:
+  - toEntities:
+    - cluster
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: infra-allow-kubeapi-egress
+  namespace: trirematics
+spec:
+  endpointSelector: {}
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: infra-allow-operator-webhook
+  namespace: trirematics
+spec:
+  endpointSelector:
+    matchLabels:
+      control-plane: controller-manager
+      operation-plane.t9s.io/level: base-operator
+  ingress:
+  - fromEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+      - port: "8443"
+        protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: infra-allow-olm-grpc-50051
+  namespace: trirematics
+spec:
+  endpointSelector:
+    matchLabels:
+      operation-plane.t9s.io/level: base-operator
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.cilium.k8s.namespace.labels.kubernetes.io/metadata.name: olm
+    toPorts:
+    - ports:
+      - port: "50051"
+        protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: infra-allow-operator-ntp
+  namespace: trirematics
+spec:
+  endpointSelector:
+    matchLabels:
+      control-plane: controller-manager
+      operation-plane.t9s.io/level: base-operator
+  egress:
+  - toEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "123"
+        protocol: UDP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: infra-allow-operator-metrics
+  namespace: trirematics
+spec:
+  endpointSelector:
+    matchLabels:
+      control-plane: controller-manager
+      operation-plane.t9s.io/level: base-operator
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.cilium.k8s.namespace.labels.kubernetes.io/metadata.name: tobs
+    toPorts:
+    - ports:
+      - port: "8443"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: infra-allow-operator-to-olm-grpc-50051
+  namespace: trirematics
+spec:
+  endpointSelector:
+    matchLabels:
+      operation-plane.t9s.io/level: base-operator
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.cilium.k8s.namespace.labels.kubernetes.io/metadata.name: olm
+    toPorts:
+    - ports:
+      - port: "50051"
+        protocol: TCP
+
