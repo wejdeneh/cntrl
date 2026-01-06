@@ -10,6 +10,7 @@ from mode import compute_mode
 from config import desired_policies
 from reconcile import reconcile
 from k8s import ensure_finalizer, remove_finalizer
+from gate import validate_apply_gate
 
 #  OBSERVATION
 from observe.runtime import run_observer_loop
@@ -170,7 +171,17 @@ def main() -> None:
             # Only reconcile when in APPLY mode; skip during BOOTSTRAP to collect edges safely
             desired = desired_policies(NAMESPACE, mode)
             if mode == "APPLY":
-                reconcile(cilium, NAMESPACE, desired)
+                gate = validate_apply_gate(NAMESPACE, pods, desired)
+                if not gate.ok:
+                    print("[controller] APPLY gate FAILED; refusing to reconcile to avoid outage")
+                    for w in gate.warnings:
+                        print(f"[controller] gate warning: {w}")
+                    for e in gate.errors:
+                        print(f"[controller] gate error:   {e}")
+                else:
+                    for w in gate.warnings:
+                        print(f"[controller] gate warning: {w}")
+                    reconcile(cilium, NAMESPACE, desired)
             else:
                 if os.environ.get("HUBBLE_DEBUG", "0") == "1":
                     print("[controller] skip reconcile (mode!=APPLY)")

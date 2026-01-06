@@ -1,6 +1,16 @@
 # roles/promote.py
-from roles.observed import load_observed
-from roles.frozen import load_frozen, save_frozen
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# Ensure project root is on sys.path when running as a script
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from roles.observed import load_observed  # noqa: E402
+from roles.frozen import load_frozen, save_frozen  # noqa: E402
 
 
 def promote_all():

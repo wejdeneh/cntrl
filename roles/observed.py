@@ -33,3 +33,17 @@ def record_edge(src: str, dst: str, port: int, proto: str) -> None:
         data["edges"] = edges
         data["last_updated"] = int(time.time())
         _save(data)
+
+
+def load_observed() -> set[Edge]:
+    """Return observed edges as a set of tuples for promotion/diffing."""
+    data = _load()
+    edges_raw = data.get("edges", []) or []
+    out: set[Edge] = set()
+    for item in edges_raw:
+        try:
+            src, dst, port, proto = item
+        except Exception:
+            continue
+        out.add((str(src), str(dst), int(port), str(proto).upper()))
+    return out

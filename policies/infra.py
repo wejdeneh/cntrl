@@ -22,11 +22,17 @@ CONTROLLER_MANAGER_SELECTOR: Dict[str, Any] = {
     ]
 }
 
-#  Select operators-plane pods (the ones OLM talks to)
+# Select operators-plane pods (the ones OLM talks to).
+# In this cluster, these pods are created/managed by OLM and labeled by catalogSource.
 OPERATORS_PLANE_SELECTOR: Dict[str, Any] = {
-    "matchLabels": {
-        "operation-plane.t9s.io/level": "operators-plane",
-    }
+    "matchExpressions": [
+        {"key": "olm.managed", "operator": "In", "values": ["true"]},
+        {
+            "key": "olm.catalogSource",
+            "operator": "In",
+            "values": ["athena-operators-plane", "odin-operators-plane"],
+        },
+    ]
 }
 
 
@@ -281,6 +287,52 @@ def operator_grpc_5553_ingress_policy(ns: str) -> Dict[str, Any]:
     }
 
 
+def operator_dns_5553_udp_ingress_policy(ns: str) -> Dict[str, Any]:
+    """Allow workloads to reach operator on UDP/5553.
+
+    We verified from the live pod spec that `athena-base-operator` declares
+    `port=5553 proto=UDP name=dns`, and frozen edges show multiple flows
+    between operator and other roles on UDP/5553.
+
+    This keeps the allow narrow (only to operator pods, only UDP/5553)
+    while we continue tightening other traffic.
+    """
+
+    return {
+        "apiVersion": "cilium.io/v2",
+        "kind": "CiliumNetworkPolicy",
+        "metadata": {
+            "name": "infra-allow-operator-udp-5553",
+            "namespace": ns,
+            "labels": {
+                "trirematics.io/type": "infra",
+                "trirematics.io/infra": "operator-udp-5553",
+                "trirematics.io/managed": "true",
+                "trirematics.io/managed-by": "controller",
+            },
+        },
+        "spec": {
+            "endpointSelector": OPERATOR_SELECTOR,
+            "ingress": [
+                {
+                    "fromEndpoints": [
+                        {"matchLabels": {"roles.athena.t9s.io/gnb": "active"}},
+                        {"matchLabels": {"roles.athena.t9s.io/amf": "active"}},
+                        {"matchLabels": {"roles.athena.t9s.io/smf": "active"}},
+                        {"matchLabels": {"roles.athena.t9s.io/upf": "active"}},
+                        {"matchLabels": {"roles.athena.t9s.io/nr-rfsim": "active"}},
+                        {"matchLabels": {"roles.athena.t9s.io/monitoring": "active"}},
+                        # Fallback: allow any pod in the same namespace to reach operator UDP/5553.
+                        # This handles unlabeled pods during rollout without widening to external namespaces.
+                        {"matchLabels": {"k8s:io.kubernetes.pod.namespace": "trirematics"}},
+                    ],
+                    "toPorts": [{"ports": [{"port": "5553", "protocol": "UDP"}]}],
+                }
+            ],
+        },
+    }
+
+
 def olm_grpc_ingress(ns: str) -> Dict[str, Any]:
     """
     Allow OLM internal gRPC (packageserver/catalog-operator) -> operators-plane on 50051.
@@ -359,6 +411,7 @@ def generate_infra(ns: str) -> List[Dict[str, Any]]:
         controller_metrics_ingress(ns),
         olm_grpc_ingress(ns),
         operator_grpc_5553_ingress_policy(ns),
+        operator_dns_5553_udp_ingress_policy(ns),
         operator_ntp_egress(ns),
         operator_olm_grpc_50051_ingress(ns),
     ]
